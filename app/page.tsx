@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Hero from "@/components/home/Hero";
 import CalendarSection from "@/components/home/CalendarSection";
-import CommunitySpotlight from "@/components/home/CommunitySpotlight";
 import UpcomingEvents from "@/components/home/UpcomingEvents";
 import {
   getApprovedEvents,
@@ -50,7 +49,6 @@ export default function HomePage({ searchParams }: PageProps) {
         <Suspense fallback={<CalendarSkeleton />}>
           <CalendarContent searchParams={searchParams} />
         </Suspense>
-        <CommunitySpotlight />
       </main>
     </>
   );

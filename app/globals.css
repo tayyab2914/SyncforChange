@@ -86,3 +86,8 @@
 @utility date-grid-item {
   aspect-ratio: 1 / 1;
 }
+
+@keyframes loading {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}

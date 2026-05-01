@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidateTag } from "next/cache";
+import { updateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -30,7 +30,7 @@ export async function deleteEventAction(
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Delete failed" };
   }
-  revalidateTag("events", { expire: 0 });
+  updateTag("events");
   return {};
 }
 
@@ -49,7 +49,7 @@ export async function resolveFlagsAction(
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Update failed" };
   }
-  revalidateTag("events", { expire: 0 });
+  updateTag("events");
   return {};
 }
 
@@ -73,7 +73,7 @@ export async function approveEvent(id: string): Promise<{ error?: string }> {
     return { error: err instanceof Error ? err.message : "Update failed" };
   }
 
-  revalidateTag("events", { expire: 0 });
+  updateTag("events");
 
   await safeSend("event-approved", () =>
     sendEventApprovedEmail({
@@ -114,7 +114,7 @@ export async function rejectEvent(
     return { error: err instanceof Error ? err.message : "Update failed" };
   }
 
-  revalidateTag("events", { expire: 0 });
+  updateTag("events");
 
   await safeSend("event-rejected", () =>
     sendEventRejectedEmail({

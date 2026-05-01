@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { CalendarCell, CalendarMeta, ListEvent } from "@/types";
 import CalendarGrid from "@/components/home/CalendarGrid";
@@ -26,6 +27,18 @@ export default function CalendarSection({
 }: CalendarSectionProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  // View is purely presentational (calendar vs list). Keep it in client state
+  // so the toggle is instant and isn't gated on a server re-render — under PPR
+  // a query-only navigation that doesn't change a cache key can serve the
+  // previously-rendered dynamic HTML, which made the toggle appear broken in
+  // production. URL stays in sync for shareable links.
+  const [view, setView] = useState<"calendar" | "list">(currentView);
+
+  useEffect(() => {
+    setView(currentView);
+  }, [currentView]);
 
   function navigate(updates: Record<string, string | undefined>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -36,7 +49,18 @@ export default function CalendarSection({
         params.set(key, value);
       }
     }
-    router.push(`/?${params.toString()}`);
+    startTransition(() => {
+      router.push(`/?${params.toString()}`);
+    });
+  }
+
+  function setViewMode(next: "calendar" | "list") {
+    setView(next);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "calendar") params.delete("view");
+    else params.set("view", next);
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
   }
 
   function prevMonth() {
@@ -88,9 +112,9 @@ export default function CalendarSection({
         <div className="flex items-center gap-2">
           <div className="flex bg-surface-container-low p-1 rounded-xl flex-1">
             <button
-              onClick={() => navigate({ view: "calendar" })}
+              onClick={() => setViewMode("calendar")}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                currentView === "calendar"
+                view === "calendar"
                   ? "bg-white shadow-sm text-primary"
                   : "text-stone-500"
               }`}
@@ -101,9 +125,9 @@ export default function CalendarSection({
               Calendar
             </button>
             <button
-              onClick={() => navigate({ view: "list" })}
+              onClick={() => setViewMode("list")}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                currentView === "list"
+                view === "list"
                   ? "bg-white shadow-sm text-primary"
                   : "text-stone-500"
               }`}
@@ -112,7 +136,7 @@ export default function CalendarSection({
               List
             </button>
           </div>
-          {currentView === "list" && (
+          {view === "list" && (
             <select
               value={currentSort}
               onChange={(e) => navigate({ sort: e.target.value })}
@@ -155,7 +179,7 @@ export default function CalendarSection({
         </div>
 
         <div className="flex items-center gap-3">
-          {currentView === "list" && (
+          {view === "list" && (
             <select
               value={currentSort}
               onChange={(e) => navigate({ sort: e.target.value })}
@@ -172,35 +196,38 @@ export default function CalendarSection({
             <ViewButton
               icon="calendar_month"
               label="Calendar"
-              active={currentView === "calendar"}
-              onClick={() => navigate({ view: "calendar" })}
+              active={view === "calendar"}
+              onClick={() => setViewMode("calendar")}
             />
             <ViewButton
               icon="list"
               label="List"
-              active={currentView === "list"}
-              onClick={() => navigate({ view: "list" })}
+              active={view === "list"}
+              onClick={() => setViewMode("list")}
             />
           </div>
         </div>
       </div>
 
-      {/* Calendar or list */}
-      {currentView === "calendar" ? (
-        <CalendarGrid cells={cells} />
-      ) : (
-        <div className="space-y-6">
-          {events.length === 0 ? (
-            <p className="text-stone-400 text-center py-16">
-              No events found for this period.
-            </p>
-          ) : (
-            events.map((event) => (
-              <EventListItem key={event.id} event={event} />
-            ))
-          )}
-        </div>
-      )}
+      {/* Calendar or list — dim while a navigation is in-flight so the user
+          can see filter/sort/month changes are being applied. */}
+      <div className={isPending ? "opacity-60 transition-opacity" : "transition-opacity"}>
+        {view === "calendar" ? (
+          <CalendarGrid cells={cells} />
+        ) : (
+          <div className="space-y-6">
+            {events.length === 0 ? (
+              <p className="text-stone-400 text-center py-16">
+                No events found for this period.
+              </p>
+            ) : (
+              events.map((event) => (
+                <EventListItem key={event.id} event={event} />
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

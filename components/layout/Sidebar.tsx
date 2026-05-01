@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { CauseArea, EventType } from "@/types";
 
@@ -42,6 +42,7 @@ type SectionKey = "cause" | "type" | "date" | "location";
 export default function Sidebar() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const activeCause = searchParams.get("cause") as CauseArea | null;
   const activeType = searchParams.get("type") as EventType | null;
@@ -74,7 +75,12 @@ export default function Sidebar() {
       }
     }
     const qs = params.toString();
-    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+    // useTransition keeps clicks responsive: the URL/UI update synchronously
+    // for instant chip feedback, while the server data refetch happens in the
+    // background and `isPending` drives a loading indicator.
+    startTransition(() => {
+      router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+    });
   }
 
   function toggleCause(cause: CauseArea) {
@@ -100,7 +106,9 @@ export default function Sidebar() {
   function clearAll() {
     setSearchInput("");
     setLocationInput("");
-    router.replace("/", { scroll: false });
+    startTransition(() => {
+      router.replace("/", { scroll: false });
+    });
   }
 
   function toggleCollapse(key: SectionKey) {
@@ -198,6 +206,13 @@ export default function Sidebar() {
           w-[88vw] max-w-[320px] lg:w-64
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
       >
+        {/* Pending indicator — shows while the server is refetching filtered events */}
+        {isPending && (
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary/20 overflow-hidden">
+            <div className="h-full w-1/3 bg-primary animate-[loading_1s_ease-in-out_infinite]" />
+          </div>
+        )}
+
         {/* Header */}
         <div className="px-5 py-5 border-b border-stone-200/60 shrink-0">
           <div className="flex items-center justify-between">

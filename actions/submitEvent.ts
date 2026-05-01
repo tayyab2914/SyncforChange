@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidateTag } from "next/cache";
+import { updateTag } from "next/cache";
 import slugify from "slugify";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
@@ -149,7 +149,7 @@ export async function submitEvent(
     };
   }
 
-  revalidateTag("events", { expire: 0 });
+  updateTag("events");
 
   // Notifications — fire-and-forget so they don't block the redirect
   const ctx = {

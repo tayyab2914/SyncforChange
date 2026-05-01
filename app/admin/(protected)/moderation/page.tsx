@@ -21,45 +21,6 @@ export default function ModerationPage() {
       <Suspense fallback={<ModerationSkeleton />}>
         <ModerationContent />
       </Suspense>
-
-      <section className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div className="md:col-span-3 p-8 bg-primary text-white rounded-3xl relative overflow-hidden flex flex-col justify-end min-h-[260px]">
-          <div className="absolute inset-0 bg-gradient-to-tr from-primary to-primary-container opacity-90" />
-          <div className="relative z-10">
-            <h2 className="text-3xl font-bold mb-3 tracking-tight">
-              Need help deciding?
-            </h2>
-            <p className="text-primary-fixed max-w-xl text-base leading-relaxed mb-5 opacity-90">
-              Review our community standards guidelines for clarity on
-              commercial vs. community-led events. When in doubt, prioritize
-              local impact.
-            </p>
-            <button className="bg-white text-primary px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-sm hover:scale-95 transition-transform">
-              Read Guidelines
-            </button>
-          </div>
-        </div>
-
-        <div className="md:col-span-1 p-6 bg-surface-container-highest rounded-3xl">
-          <h4 className="font-bold text-sm uppercase tracking-widest text-primary mb-4">
-            Quick Links
-          </h4>
-          <ul className="space-y-3">
-            {["View Calendar", "Submit Page", "Admin Login", "Settings"].map(
-              (link) => (
-                <li key={link}>
-                  <a
-                    href="#"
-                    className="text-stone-600 hover:text-secondary font-medium transition-colors text-sm"
-                  >
-                    {link}
-                  </a>
-                </li>
-              )
-            )}
-          </ul>
-        </div>
-      </section>
     </main>
   );
 }
