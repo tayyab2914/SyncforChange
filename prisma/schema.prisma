@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ORGANIZER
+  ADMIN
+}
+
+enum EventStatus {
+  pending
+  approved
+  rejected
+}
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique
+  passwordHash    String    @map("password_hash")
+  role            Role      @default(ORGANIZER)
+  emailVerified   Boolean   @default(false) @map("email_verified")
+
+  // Profile
+  displayName       String?   @map("display_name")
+  organizationType  String?   @map("organization_type")
+  bio               String?
+  location          String?
+  website           String?
+  profileImageUrl   String?   @map("profile_image_url")
+  causeFocus        String[]  @default([]) @map("cause_focus")
+  profileCompleted  Boolean   @default(false) @map("profile_completed")
+
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  verificationTokens EmailVerificationToken[]
+  events             Event[]
+
+  @@map("users")
+}
+
+model EmailVerificationToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  tokenHash  String   @unique @map("token_hash")
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz()
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model Organization {
+  id           String  @id @default(uuid()) @db.Uuid
+  name         String
+  slug         String  @unique
+  logoUrl      String? @map("logo_url")
+  website      String?
+  contactEmail String  @map("contact_email")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  events       Event[]
+
+  @@map("organizations")
+}
+
+model Event {
+  id                  String      @id @default(uuid()) @db.Uuid
+  slug                String      @unique
+  title               String
+  subtitle            String?
+  description         String?
+  heroImageUrl        String?     @map("hero_image_url")
+  startsAt            DateTime    @map("starts_at") @db.Timestamptz()
+  endsAt              DateTime?   @map("ends_at") @db.Timestamptz()
+  locationName        String      @map("location_name")
+  address             String?
+  causeAreas          String[]    @default([]) @map("cause_areas")
+  eventTypes          String[]    @default([]) @map("event_types")
+  hostOrgId           String?     @map("host_org_id") @db.Uuid
+  hostName            String      @map("host_name")
+  hostLogoUrl         String?     @map("host_logo_url")
+  organizerName       String?     @map("organizer_name")
+  organizerRole       String?     @map("organizer_role")
+  organizerInitial    String?     @map("organizer_initial") @db.Char(1)
+  coHosts             String[]    @default([]) @map("co_hosts")
+  openToCollaboration Boolean     @default(false) @map("open_to_collaboration")
+  rsvpLink            String?     @map("rsvp_link")
+  volunteerLink       String?     @map("volunteer_link")
+  contactLink         String?     @map("contact_link")
+  spotsLeft           Int?        @map("spots_left")
+  totalSpots          Int?        @map("total_spots")
+  status              EventStatus @default(pending)
+  submittedByEmail    String      @map("submitted_by_email")
+  submittedById       String?     @map("submitted_by_id") @db.Uuid
+  reviewedBy          String?     @map("reviewed_by") @db.Uuid
+  reviewedAt          DateTime?   @map("reviewed_at") @db.Timestamptz()
+  rejectionReason     String?     @map("rejection_reason")
+  createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime    @updatedAt @map("updated_at") @db.Timestamptz()
+
+  organization        Organization? @relation(fields: [hostOrgId], references: [id], onDelete: SetNull)
+  submitter           User?         @relation(fields: [submittedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([startsAt])
+  @@index([submittedById])
+  @@map("events")
+}

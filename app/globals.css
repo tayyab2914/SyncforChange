@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* M3 Surface Colors */
+  --color-background: #fcf9f8;
+  --color-surface: #fcf9f8;
+  --color-surface-bright: #fcf9f8;
+  --color-surface-dim: #dcd9d9;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f6f3f2;
+  --color-surface-container: #f0eded;
+  --color-surface-container-high: #eae7e7;
+  --color-surface-container-highest: #e4e2e1;
+  --color-surface-variant: #e4e2e1;
+  --color-surface-tint: #006c48;
+
+  /* M3 On-Surface */
+  --color-on-background: #1b1c1c;
+  --color-on-surface: #1b1c1c;
+  --color-on-surface-variant: #3d4a42;
+  --color-inverse-surface: #303030;
+  --color-inverse-on-surface: #f3f0ef;
+
+  /* M3 Primary */
+  --color-primary: #006c48;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #19a874;
+  --color-on-primary-container: #003421;
+  --color-primary-fixed: #7dfabf;
+  --color-primary-fixed-dim: #5fdda4;
+  --color-on-primary-fixed: #002113;
+  --color-on-primary-fixed-variant: #005235;
+  --color-inverse-primary: #5fdda4;
+
+  /* M3 Secondary */
+  --color-secondary: #a43c2a;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #fc7e67;
+  --color-on-secondary-container: #711709;
+  --color-secondary-fixed: #ffdad3;
+  --color-secondary-fixed-dim: #ffb4a6;
+  --color-on-secondary-fixed: #3f0300;
+  --color-on-secondary-fixed-variant: #842515;
+
+  /* M3 Tertiary */
+  --color-tertiary: #7a5900;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #bc8c14;
+  --color-on-tertiary-container: #3c2a00;
+  --color-tertiary-fixed: #ffdea2;
+  --color-tertiary-fixed-dim: #f4be48;
+  --color-on-tertiary-fixed: #261900;
+  --color-on-tertiary-fixed-variant: #5c4200;
+
+  /* M3 Error */
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* M3 Outline */
+  --color-outline: #6d7a71;
+  --color-outline-variant: #bccabf;
+
+  /* Font Families */
+  --font-headline: "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Inter", sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  body {
+    font-family: "Inter", sans-serif;
+    background-color: #fcf9f8;
+    color: #1b1c1c;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  .material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    display: inline-block;
+    line-height: 1;
+    vertical-align: middle;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility date-grid-item {
+  aspect-ratio: 1 / 1;
 }
