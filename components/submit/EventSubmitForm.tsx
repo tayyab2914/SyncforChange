@@ -82,6 +82,32 @@ export default function EventSubmitForm() {
   const [selectedTypes, setSelectedTypes] = useState<EventType[]>([]);
   const [isPhysical, setIsPhysical] = useState(true);
   const [heroImageUrl, setHeroImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleHeroImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError("");
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload/event", { method: "POST", body: fd });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setUploadError(data.error ?? "Upload failed");
+      } else {
+        setHeroImageUrl(data.url);
+      }
+    } catch {
+      setUploadError("Upload failed. Try again.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   // Restore form values after server-side validation fails
   useEffect(() => {
@@ -593,39 +619,78 @@ export default function EventSubmitForm() {
         </section>
 
         {/* ── 03  Visual Story ── */}
-        <section className="space-y-8">
+        <section className="space-y-6">
           <SectionHeader num="03" label="Visual Story" />
 
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-stone-500 mb-2 ml-1">
-              Hero Image URL{" "}
-              <span className="text-stone-300 normal-case font-normal tracking-normal">
-                optional
-              </span>
-            </label>
-            <input
-              name="hero_image_url"
-              type="url"
-              value={heroImageUrl}
-              onChange={(e) => setHeroImageUrl(e.target.value)}
-              className={errClass("hero_image_url")}
-              placeholder="https://example.com/your-event-image.jpg"
-            />
-            <FieldError msg={state.errors?.hero_image_url?.[0]} />
-            <p className="text-xs text-stone-400 mt-2 ml-1">
-              Paste a direct link to an event flyer hosted on Imgur, Cloudinary, or your own site.
-            </p>
-          </div>
+          <input type="hidden" name="hero_image_url" value={heroImageUrl} />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={handleHeroImageChange}
+            className="hidden"
+          />
 
-          {heroImageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={heroImageUrl}
-              alt="Preview"
-              className="rounded-2xl h-48 w-full object-cover"
-              onError={(e) => (e.currentTarget.style.display = "none")}
-            />
+          {heroImageUrl ? (
+            <div className="relative rounded-2xl overflow-hidden bg-surface-container-low">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={heroImageUrl}
+                alt="Hero preview"
+                className="w-full h-64 object-cover"
+              />
+              {uploading && (
+                <div className="absolute inset-0 bg-on-surface/40 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-white animate-spin text-3xl">
+                    progress_activity
+                  </span>
+                </div>
+              )}
+              <div className="absolute bottom-3 right-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="inline-flex items-center gap-1.5 bg-white/95 hover:bg-white text-on-surface text-xs font-bold px-3 py-2 rounded-full shadow-md disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-base">edit</span>
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHeroImageUrl("")}
+                  className="inline-flex items-center gap-1.5 bg-white/95 hover:bg-error hover:text-white text-on-surface text-xs font-bold px-3 py-2 rounded-full shadow-md transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">delete</span>
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="group relative w-full border-2 border-dashed border-outline-variant rounded-2xl p-12 flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/5 transition-all bg-surface-container-low/30 disabled:opacity-60"
+            >
+              <span className="material-symbols-outlined text-4xl text-primary/40 group-hover:scale-110 transition-transform">
+                {uploading ? "progress_activity" : "upload_file"}
+              </span>
+              <div className="text-center">
+                <p className="text-sm font-bold text-stone-600">
+                  {uploading ? "Uploading…" : "Upload Event Flyer or Image"}
+                </p>
+                <p className="text-xs text-stone-400 mt-1">
+                  JPG, PNG, WebP, or GIF up to 8MB · optional
+                </p>
+              </div>
+            </button>
           )}
+
+          {uploadError && (
+            <p className="text-xs text-error font-medium">{uploadError}</p>
+          )}
+          <FieldError msg={state.errors?.hero_image_url?.[0]} />
         </section>
 
         {/* Submit */}

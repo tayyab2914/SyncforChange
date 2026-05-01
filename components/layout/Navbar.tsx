@@ -69,33 +69,37 @@ export default function Navbar() {
 
         {/* Right cluster */}
         <div className="flex items-center gap-2 md:gap-3">
-          {/* Submit Event — pill with icon */}
-          <Link
-            href="/submit"
-            className="hidden sm:inline-flex items-center gap-2 bg-gradient-to-br from-primary to-primary-container text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 hover:scale-[0.98] transition-all"
-          >
-            <span
-              className="material-symbols-outlined text-lg"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              add_circle
-            </span>
-            Submit Event
-          </Link>
+          {user?.role !== "ADMIN" && (
+            <>
+              {/* Submit Event — pill with icon */}
+              <Link
+                href="/submit"
+                className="hidden sm:inline-flex items-center gap-2 bg-gradient-to-br from-primary to-primary-container text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 hover:scale-[0.98] transition-all"
+              >
+                <span
+                  className="material-symbols-outlined text-lg"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  add_circle
+                </span>
+                Submit Event
+              </Link>
 
-          {/* Mobile-only compact submit button */}
-          <Link
-            href="/submit"
-            className="sm:hidden flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-container text-white shadow-md shadow-primary/20"
-            aria-label="Submit Event"
-          >
-            <span
-              className="material-symbols-outlined text-xl"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              add
-            </span>
-          </Link>
+              {/* Mobile-only compact submit button */}
+              <Link
+                href="/submit"
+                className="sm:hidden flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-container text-white shadow-md shadow-primary/20"
+                aria-label="Submit Event"
+              >
+                <span
+                  className="material-symbols-outlined text-xl"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  add
+                </span>
+              </Link>
+            </>
+          )}
 
           {user ? (
             <div ref={menuRef} className="relative">
@@ -167,16 +171,18 @@ export default function Navbar() {
                         </Link>
                       </>
                     )}
-                    <Link
-                      href="/submit"
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-stone-600 hover:bg-stone-50 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-base text-stone-400">
-                        edit_calendar
-                      </span>
-                      Submit New Event
-                    </Link>
+                    {user.role !== "ADMIN" && (
+                      <Link
+                        href="/submit"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-stone-600 hover:bg-stone-50 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-base text-stone-400">
+                          edit_calendar
+                        </span>
+                        Submit New Event
+                      </Link>
+                    )}
                     <button
                       onClick={handleSignOut}
                       disabled={isPending}

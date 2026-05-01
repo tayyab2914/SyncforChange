@@ -3,14 +3,15 @@
 import { useState, useTransition, useEffect, useRef } from "react";
 import { format, parseISO } from "date-fns";
 import { approveEvent, rejectEvent } from "@/actions/moderateEvent";
-import type { DbEvent, EventStatus } from "@/types";
+import type { AdminEvent, EventStatus } from "@/types";
+import EventDetailModal from "./EventDetailModal";
 
 const POLL_MS = 10_000;
 
 const PAGE_SIZE = 10;
 
 interface Props {
-  events: DbEvent[];
+  events: AdminEvent[];
 }
 
 export default function ModerationTable({ events: initial }: Props) {
@@ -18,6 +19,7 @@ export default function ModerationTable({ events: initial }: Props) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [toast, setToast] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   // Poll every 10s for new pending submissions
   const knownIds = useRef(new Set(initial.map((e) => e.id)));
@@ -27,7 +29,7 @@ export default function ModerationTable({ events: initial }: Props) {
       try {
         const res = await fetch("/api/admin/events", { cache: "no-store" });
         if (!res.ok) return;
-        const { events: latest } = (await res.json()) as { events: DbEvent[] };
+        const { events: latest } = (await res.json()) as { events: AdminEvent[] };
 
         const newPending = latest.filter(
           (e) => e.status === "pending" && !knownIds.current.has(e.id)
@@ -49,6 +51,8 @@ export default function ModerationTable({ events: initial }: Props) {
     return () => clearInterval(interval);
   }, []);
 
+  const openEvent = events.find((e) => e.id === openId) ?? null;
+
   const filtered = events.filter(
     (e) =>
       e.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -67,8 +71,21 @@ export default function ModerationTable({ events: initial }: Props) {
     );
   }
 
+  function removeEvent(id: string) {
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    knownIds.current.delete(id);
+  }
+
   return (
     <>
+    {openEvent && (
+      <EventDetailModal
+        event={openEvent}
+        onClose={() => setOpenId(null)}
+        onStatusChange={updateStatus}
+        onDelete={removeEvent}
+      />
+    )}
     {toast && (
       <div className="fixed bottom-6 right-6 bg-primary text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 z-50">
         <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -103,8 +120,8 @@ export default function ModerationTable({ events: initial }: Props) {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full border-separate border-spacing-0">
           <thead>
             <tr className="text-stone-500 uppercase text-[0.7rem] font-black tracking-[0.15em] text-left">
@@ -129,11 +146,31 @@ export default function ModerationTable({ events: initial }: Props) {
                   key={event.id}
                   event={event}
                   onStatusChange={updateStatus}
+                  onOpenDetails={() => setOpenId(event.id)}
                 />
               ))
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile card list */}
+      <div className="md:hidden p-4 space-y-3">
+        {paginated.length === 0 ? (
+          <div className="px-8 py-16 text-center text-stone-400">
+            <span className="material-symbols-outlined text-4xl block mb-3">inbox</span>
+            <p className="font-bold">No events found.</p>
+          </div>
+        ) : (
+          paginated.map((event) => (
+            <ModerationCard
+              key={event.id}
+              event={event}
+              onStatusChange={updateStatus}
+              onOpenDetails={() => setOpenId(event.id)}
+            />
+          ))
+        )}
       </div>
 
       {/* Pagination */}
@@ -183,9 +220,11 @@ export default function ModerationTable({ events: initial }: Props) {
 function ModerationRow({
   event,
   onStatusChange,
+  onOpenDetails,
 }: {
-  event: DbEvent;
+  event: AdminEvent;
   onStatusChange: (id: string, status: EventStatus, reason?: string) => void;
+  onOpenDetails: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [showReject, setShowReject] = useState(false);
@@ -232,7 +271,11 @@ function ModerationRow({
       >
         {/* Event */}
         <td className="px-8 py-5">
-          <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={onOpenDetails}
+            className="flex items-center gap-4 text-left w-full"
+          >
             <Thumbnail src={event.hero_image_url} label={event.title[0]} grayscale={isRejected} />
             <div>
               <div
@@ -251,11 +294,18 @@ function ModerationRow({
                   {event.cause_areas[0] ?? event.event_types[0] ?? ""}
                 </div>
               )}
+              {event.openFlagCount > 0 && (
+                <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-error/10 text-error text-[10px] font-bold">
+                  <span className="material-symbols-outlined text-xs">flag</span>
+                  {event.openFlagCount} report
+                  {event.openFlagCount !== 1 ? "s" : ""}
+                </div>
+              )}
               {error && (
                 <p className="text-xs text-error font-medium mt-0.5">{error}</p>
               )}
             </div>
-          </div>
+          </button>
         </td>
 
         {/* Organization */}
@@ -287,10 +337,9 @@ function ModerationRow({
                   disabled={isPending}
                 />
                 <ActionBtn
-                  icon="cancel"
-                  filled
-                  color="text-error hover:bg-error/10"
-                  title="Reject"
+                  icon="edit_note"
+                  color="text-tertiary hover:bg-tertiary/10"
+                  title="Request Edits"
                   onClick={() => { setShowReject((v) => !v); setError(""); }}
                   disabled={isPending}
                 />
@@ -314,38 +363,35 @@ function ModerationRow({
                 disabled={isPending}
               />
             )}
-            <a
-              href={`/events/${event.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 text-stone-400 hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
-              title="Preview"
-            >
-              <span className="material-symbols-outlined text-xl">open_in_new</span>
-            </a>
+            <ActionBtn
+              icon="visibility"
+              color="text-stone-400 hover:text-primary hover:bg-primary/10"
+              title="View full details"
+              onClick={onOpenDetails}
+            />
           </div>
         </td>
       </tr>
 
-      {/* Inline rejection reason */}
+      {/* Inline edits-request feedback */}
       {showReject && (
-        <tr className="bg-error/5">
+        <tr className="bg-tertiary/5">
           <td colSpan={5} className="px-8 pb-5">
             <div className="flex gap-3 items-start">
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={2}
-                placeholder="Rejection reason (required)…"
-                className="flex-1 bg-white border border-error/20 rounded-xl text-sm p-3 focus:ring-2 focus:ring-error/20 outline-none resize-none"
+                placeholder="Tell the organizer what needs to change…"
+                className="flex-1 bg-white border border-tertiary/20 rounded-xl text-sm p-3 focus:ring-2 focus:ring-tertiary/20 outline-none resize-none"
               />
               <div className="flex flex-col gap-2">
                 <button
                   onClick={handleReject}
                   disabled={isPending}
-                  className="px-4 py-2 bg-error text-white rounded-xl text-xs font-bold hover:scale-95 transition-transform disabled:opacity-50"
+                  className="px-4 py-2 bg-tertiary text-white rounded-xl text-xs font-bold hover:scale-95 transition-transform disabled:opacity-50"
                 >
-                  Confirm
+                  Send
                 </button>
                 <button
                   onClick={() => { setShowReject(false); setReason(""); setError(""); }}
@@ -359,6 +405,89 @@ function ModerationRow({
         </tr>
       )}
     </>
+  );
+}
+
+function ModerationCard({
+  event,
+  onStatusChange,
+  onOpenDetails,
+}: {
+  event: AdminEvent;
+  onStatusChange: (id: string, status: EventStatus, reason?: string) => void;
+  onOpenDetails: () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+  const isPendingStatus = event.status === "pending";
+  const isRejected = event.status === "rejected";
+
+  function handleApprove() {
+    startTransition(async () => {
+      const res = await approveEvent(event.id);
+      if (res.error) return setError(res.error);
+      onStatusChange(event.id, "approved");
+    });
+  }
+
+  return (
+    <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm">
+      <button
+        type="button"
+        onClick={onOpenDetails}
+        className="flex items-start gap-3 w-full text-left"
+      >
+        <Thumbnail src={event.hero_image_url} label={event.title[0]} grayscale={isRejected} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-2 justify-between">
+            <h3 className={`font-bold text-on-surface text-sm leading-snug ${isRejected ? "line-through" : ""}`}>
+              {event.title}
+            </h3>
+          </div>
+          <p className="text-xs text-stone-500 mt-1 truncate">{event.host_name}</p>
+          <div className="flex items-center gap-2 mt-2 text-[10px] text-stone-400">
+            <span className="material-symbols-outlined text-xs">calendar_today</span>
+            <span>{format(parseISO(event.created_at), "MMM d")}</span>
+            <span className="ml-auto">
+              <StatusBadge status={event.status} />
+            </span>
+          </div>
+        </div>
+      </button>
+
+      {isRejected && event.rejection_reason && (
+        <p className="text-[11px] text-error mt-3 px-1">
+          Reason: {event.rejection_reason}
+        </p>
+      )}
+
+      {error && <p className="text-[11px] text-error mt-2">{error}</p>}
+
+      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-stone-100">
+        <button
+          onClick={onOpenDetails}
+          className="flex-1 inline-flex items-center justify-center gap-1.5 bg-surface-container-low hover:bg-surface-container text-stone-700 text-xs font-bold py-2.5 rounded-xl transition-colors"
+        >
+          <span className="material-symbols-outlined text-base">visibility</span>
+          Details
+        </button>
+        {isPendingStatus && (
+          <button
+            onClick={handleApprove}
+            disabled={isPending}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 bg-primary text-white text-xs font-bold py-2.5 rounded-xl hover:scale-95 transition-transform disabled:opacity-50"
+          >
+            <span
+              className="material-symbols-outlined text-base"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              check_circle
+            </span>
+            Approve
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -101,18 +101,15 @@ function DayCell({
   }
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      disabled={!hasEvents}
+    <div
       className={`group relative w-full aspect-square md:aspect-auto md:min-h-[96px] rounded-xl p-1.5 md:p-2 text-left transition-all flex flex-col gap-1 overflow-hidden ${
         isSelected
           ? "bg-primary/10 ring-2 ring-primary"
           : cell.isToday
           ? "bg-primary/5 ring-1 ring-primary/30"
           : hasEvents
-          ? "bg-surface-container-low/40 hover:bg-surface-container-low cursor-pointer"
-          : "bg-surface-container-low/20 cursor-default"
+          ? "bg-surface-container-low/40 hover:bg-surface-container-low"
+          : "bg-surface-container-low/20"
       }`}
     >
       <span
@@ -129,20 +126,25 @@ function DayCell({
             <EventChip key={e.slug} event={e} />
           ))}
           {overflow > 0 && (
-            <span className="text-[9px] md:text-[10px] font-bold text-stone-400 px-1 mt-auto">
+            <button
+              type="button"
+              onClick={onSelect}
+              className="text-[9px] md:text-[10px] font-bold text-stone-400 hover:text-primary px-1 mt-auto text-left transition-colors"
+            >
               +{overflow} more
-            </span>
+            </button>
           )}
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
 function EventChip({ event }: { event: CalendarDayEvent }) {
   return (
-    <div
-      className={`flex items-center gap-1 md:gap-1.5 px-1 md:px-1.5 py-0.5 rounded-md ${ACCENT_BG_SOFT[event.accent]} border-l-2 ${
+    <Link
+      href={`/events/${event.slug}`}
+      className={`flex items-center gap-1 md:gap-1.5 px-1 md:px-1.5 py-0.5 rounded-md ${ACCENT_BG_SOFT[event.accent]} border-l-2 hover:scale-[1.02] hover:shadow-sm transition-all ${
         event.accent === "primary"
           ? "border-primary"
           : event.accent === "secondary"
@@ -167,7 +169,7 @@ function EventChip({ event }: { event: CalendarDayEvent }) {
       >
         {event.title}
       </span>
-    </div>
+    </Link>
   );
 }
 

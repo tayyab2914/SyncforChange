@@ -4,15 +4,15 @@ import ModerationTable from "@/components/admin/ModerationTable";
 
 export default function ModerationPage() {
   return (
-    <main className="pt-28 pb-12 px-6 lg:mr-8 max-w-7xl mx-auto">
-      <header className="mb-10">
-        <span className="text-primary font-bold tracking-widest text-[0.75rem] uppercase block mb-2">
+    <main className="pt-24 md:pt-28 pb-24 md:pb-12 px-4 md:px-6 lg:mr-8 max-w-7xl mx-auto">
+      <header className="mb-8 md:mb-10">
+        <span className="text-primary font-bold tracking-widest text-[0.7rem] md:text-[0.75rem] uppercase block mb-2">
           Management Console
         </span>
-        <h1 className="text-4xl font-bold tracking-tight text-on-surface">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-on-surface">
           Event Moderation
         </h1>
-        <p className="text-on-surface-variant mt-2 max-w-2xl leading-relaxed">
+        <p className="text-on-surface-variant mt-2 max-w-2xl leading-relaxed text-sm md:text-base">
           Review and manage community-submitted events. Ensure consistency with
           our editorial standards before publication.
         </p>

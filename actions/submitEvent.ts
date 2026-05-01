@@ -8,6 +8,12 @@ import {
   eventSubmitSchema,
   type EventSubmitInput,
 } from "@/lib/validations/eventSubmission";
+import {
+  safeSend,
+  sendEventSubmittedEmail,
+  sendNewSubmissionAlertEmail,
+  getAdminEmails,
+} from "@/lib/auth/email";
 
 export type SubmittedValues = {
   title?: string;
@@ -42,6 +48,13 @@ export async function submitEvent(
   const session = await getSession();
   if (!session?.email) {
     return { errors: { root: ["You must be signed in to submit events."] } };
+  }
+  if (session.role === "ADMIN") {
+    return {
+      errors: {
+        root: ["Admin accounts cannot submit events. Use an organizer account."],
+      },
+    };
   }
 
   const raw: Record<string, unknown> = {};
@@ -97,8 +110,9 @@ export async function submitEvent(
   const base = slugify(data.title, { lower: true, strict: true });
   const slug = `${base}-${Date.now().toString(36)}`;
 
+  let createdEvent;
   try {
-    await prisma.event.create({
+    createdEvent = await prisma.event.create({
       data: {
         slug,
         title: data.title,
@@ -136,5 +150,25 @@ export async function submitEvent(
   }
 
   revalidateTag("events", { expire: 0 });
+
+  // Notifications — fire-and-forget so they don't block the redirect
+  const ctx = {
+    organizerEmail: data.submitted_by_email,
+    organizerName: data.organizer_name ?? null,
+    eventTitle: createdEvent.title,
+    eventSlug: createdEvent.slug,
+    startsAt: createdEvent.startsAt,
+    locationName: createdEvent.locationName,
+    hostName: createdEvent.hostName,
+  };
+
+  await Promise.all([
+    safeSend("event-submitted", () => sendEventSubmittedEmail(ctx)),
+    safeSend("admin-new-submission", async () => {
+      const adminEmails = await getAdminEmails();
+      await sendNewSubmissionAlertEmail(adminEmails, ctx);
+    }),
+  ]);
+
   return { success: true };
 }

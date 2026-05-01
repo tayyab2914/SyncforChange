@@ -26,6 +26,21 @@ export interface ListEvent {
   hostLogo: string;
 }
 
+/** Rich organizer profile shown on the event detail page */
+export interface EventOrganizerProfile {
+  id: string;
+  displayName: string;
+  organizationType: string | null;
+  bio: string | null;
+  location: string | null;
+  website: string | null;
+  email: string;
+  profileImageUrl: string | null;
+  causeFocus: string[];
+  memberSince: string;
+  totalEvents: number;
+}
+
 /** Full shape used on the event detail page */
 export interface FullEvent extends ListEvent {
   subtitle: string;
@@ -43,6 +58,13 @@ export interface FullEvent extends ListEvent {
   totalSpots: number;
   /** ID of the user who submitted this event — used for "View Profile" link */
   submitterId: string | null;
+  /** Submitter's email (used for Contact / Co-host mailto fallback) */
+  submitterEmail: string;
+  /** ISO datetime strings for calendar integration */
+  startsAtIso: string;
+  endsAtIso: string | null;
+  /** Full submitter profile data, when available */
+  organizerProfile: EventOrganizerProfile | null;
 }
 
 export interface CalendarDayEvent {
@@ -101,6 +123,36 @@ export type EventType =
   | "Webinar"
   | "Other";
 
+/** Submitter profile fields embedded for the admin moderation view */
+export interface AdminEventSubmitter {
+  id: string;
+  email: string;
+  displayName: string | null;
+  organizationType: string | null;
+  bio: string | null;
+  location: string | null;
+  website: string | null;
+  profileImageUrl: string | null;
+  causeFocus: string[];
+  profileCompleted: boolean;
+  createdAt: string;
+}
+
+export interface EventFlagSummary {
+  id: string;
+  reason: "outdated" | "inappropriate" | "spam" | "inaccurate" | "other";
+  message: string | null;
+  reporterEmail: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminEvent extends DbEvent {
+  submitter: AdminEventSubmitter | null;
+  flags: EventFlagSummary[];
+  openFlagCount: number;
+}
+
 export interface DbEvent {
   id: string;
   slug: string;
@@ -138,6 +190,8 @@ export interface DbEvent {
 
 // ─── Filter state (URL search params) ─────────────────────────────────────────
 
+export type DateRangeFilter = "today" | "this_week" | "this_month" | "next_30_days";
+
 export interface EventFilters {
   cause?: CauseArea;
   type?: EventType;
@@ -145,7 +199,9 @@ export interface EventFilters {
   year?: number;
   location?: string;
   view?: "calendar" | "list";
-  sort?: "date_asc" | "date_desc";
+  sort?: "date_asc" | "date_desc" | "type_asc" | "type_desc";
+  q?: string;
+  date?: DateRangeFilter;
 }
 
 // ─── Form submission payload ───────────────────────────────────────────────────

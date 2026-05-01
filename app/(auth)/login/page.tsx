@@ -9,6 +9,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/";
   const verify = searchParams.get("verify");
+  const reset = searchParams.get("reset");
   const fromSubmit = next.startsWith("/submit");
 
   const [state, formAction, pending] = useActionState(loginAction, {});
@@ -27,6 +28,25 @@ function LoginForm() {
 
   return (
     <div className="w-full max-w-sm">
+      {reset === "ok" && (
+        <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 mb-4 flex items-start gap-3">
+          <span
+            className="material-symbols-outlined text-primary text-xl shrink-0 mt-0.5"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >
+            check_circle
+          </span>
+          <div>
+            <p className="text-sm font-bold text-primary">
+              Password updated
+            </p>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Sign in with your new password.
+            </p>
+          </div>
+        </div>
+      )}
+
       {fromSubmit && (
         <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 mb-4 flex items-start gap-3">
           <span className="material-symbols-outlined text-primary text-xl shrink-0 mt-0.5">
@@ -84,9 +104,17 @@ function LoginForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-stone-500 mb-1.5">
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-stone-500">
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-[11px] font-bold text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               name="password"

@@ -33,6 +33,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
+  // Admins cannot submit events — they moderate, they don't post
+  if (isSubmitRoute && session.role === "ADMIN") {
+    return NextResponse.redirect(new URL("/admin/moderation", request.url));
+  }
+
   // Organizers must complete profile before submitting events
   if (
     isSubmitRoute &&

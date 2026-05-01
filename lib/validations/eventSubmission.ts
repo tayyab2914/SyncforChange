@@ -69,7 +69,19 @@ export const eventSubmitSchema = z
     organizer_name: z.string().max(150).optional(),
     organizer_role: z.string().max(100).optional(),
     submitted_by_email: z.string().email("Valid email is required"),
-    hero_image_url: z.string().optional(),
+    hero_image_url: z
+      .string()
+      .optional()
+      .transform((v) => (v === "" ? undefined : v))
+      .pipe(
+        z
+          .string()
+          .refine(
+            (v) => v.startsWith("/uploads/") || /^https?:\/\//.test(v),
+            "Invalid image URL"
+          )
+          .optional()
+      ),
   })
   .refine(
     (data) => {

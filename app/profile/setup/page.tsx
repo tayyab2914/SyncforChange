@@ -6,7 +6,7 @@ import ProfileSetupForm from "@/components/profile/ProfileSetupForm";
 
 export default function ProfileSetupPage() {
   return (
-    <main className="pt-28 pb-20 max-w-2xl mx-auto px-6">
+    <main className="pt-24 md:pt-28 pb-24 md:pb-20 max-w-2xl mx-auto px-4 md:px-6">
       <Suspense fallback={<div className="h-96 bg-stone-100 rounded-3xl animate-pulse" />}>
         <ProfileSetupContent />
       </Suspense>

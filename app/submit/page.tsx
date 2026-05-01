@@ -3,14 +3,14 @@ import Image from "next/image";
 
 export default function SubmitPage() {
   return (
-    <main className="pt-32 pb-20 px-6 max-w-5xl mx-auto">
+    <main className="pt-24 md:pt-32 pb-20 px-4 md:px-6 max-w-5xl mx-auto">
       {/* Hero */}
-      <div className="mb-16 space-y-4">
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tighter text-on-surface leading-tight">
+      <div className="mb-10 md:mb-16 space-y-3 md:space-y-4">
+        <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tighter text-on-surface leading-tight">
           Share your <br />
           <span className="text-primary italic">community&apos;s pulse.</span>
         </h1>
-        <p className="text-stone-500 text-lg max-w-2xl font-medium leading-relaxed">
+        <p className="text-stone-500 text-base md:text-lg max-w-2xl font-medium leading-relaxed">
           Add your story to the Living Journal. Submissions are curated and
           reviewed before publishing to maintain the quality of our collective
           narrative.
@@ -18,7 +18,7 @@ export default function SubmitPage() {
       </div>
 
       {/* Two-column grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
         {/* Form — 7 cols */}
         <div className="lg:col-span-7">
           <EventSubmitForm />

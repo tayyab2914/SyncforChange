@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/auth/tokens";
 import { setSessionCookie } from "@/lib/auth/session";
+import { safeSend, sendWelcomeEmail } from "@/lib/auth/email";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -26,6 +27,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?verify=expired", origin));
   }
 
+  const wasAlreadyVerified = record.user.emailVerified;
+
   await prisma.$transaction([
     prisma.user.update({
       where: { id: record.userId },
@@ -33,6 +36,11 @@ export async function GET(request: NextRequest) {
     }),
     prisma.emailVerificationToken.deleteMany({ where: { userId: record.userId } }),
   ]);
+
+  // Send welcome email only on FIRST verification (not on re-verification)
+  if (!wasAlreadyVerified) {
+    await safeSend("welcome", () => sendWelcomeEmail(record.user.email));
+  }
 
   await setSessionCookie({
     userId: record.user.id,

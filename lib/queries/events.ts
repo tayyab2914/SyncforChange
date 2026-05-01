@@ -1,4 +1,13 @@
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+} from "date-fns";
 import { cacheTag, cacheLife } from "next/cache";
 import { prisma } from "@/lib/db";
 import type { Event as PrismaEvent } from "@prisma/client";
@@ -11,6 +20,8 @@ import type {
   CauseArea,
   EventType,
   CalendarDayEvent,
+  AdminEvent,
+  AdminEventSubmitter,
 } from "@/types";
 
 // ─── Tag color mapping ─────────────────────────────────────────────────────────
@@ -140,6 +151,10 @@ function mapToFullEvent(row: PrismaEvent): FullEvent {
     spotsLeft: row.spotsLeft ?? 0,
     totalSpots: row.totalSpots ?? 0,
     submitterId: row.submittedById,
+    submitterEmail: row.submittedByEmail,
+    startsAtIso: row.startsAt.toISOString(),
+    endsAtIso: row.endsAt?.toISOString() ?? null,
+    organizerProfile: null,
   };
 }
 
@@ -170,16 +185,62 @@ export async function getApprovedEvents(
       mode: "insensitive",
     };
   }
-  if (filters.month && filters.year) {
+  if (filters.q) {
+    (where as Record<string, unknown>).OR = [
+      { title: { contains: filters.q, mode: "insensitive" } },
+      { description: { contains: filters.q, mode: "insensitive" } },
+      { hostName: { contains: filters.q, mode: "insensitive" } },
+    ];
+  }
+
+  // Date range filter takes precedence over month/year
+  if (filters.date) {
+    const now = new Date();
+    let gte: Date;
+    let lte: Date;
+    switch (filters.date) {
+      case "today":
+        gte = startOfDay(now);
+        lte = endOfDay(now);
+        break;
+      case "this_week":
+        gte = startOfWeek(now, { weekStartsOn: 1 });
+        lte = endOfWeek(now, { weekStartsOn: 1 });
+        break;
+      case "this_month":
+        gte = startOfMonth(now);
+        lte = endOfMonth(now);
+        break;
+      case "next_30_days":
+        gte = startOfDay(now);
+        lte = endOfDay(addDays(now, 30));
+        break;
+    }
+    (where as Record<string, unknown>).startsAt = { gte, lte };
+  } else if (filters.month && filters.year) {
     (where as Record<string, unknown>).startsAt = {
       gte: startOfMonth(new Date(filters.year, filters.month - 1, 1)),
       lte: endOfMonth(new Date(filters.year, filters.month - 1, 1)),
     };
   }
 
+  // Default: soonest first
+  let orderBy: Record<string, "asc" | "desc"> | Record<string, "asc" | "desc">[] = {
+    startsAt: "asc",
+  };
+  if (filters.sort === "date_desc") {
+    orderBy = { startsAt: "desc" };
+  } else if (filters.sort === "type_asc" || filters.sort === "type_desc") {
+    // Postgres sorts text[] by first element alphabetically — good enough
+    orderBy = [
+      { eventTypes: filters.sort === "type_desc" ? "desc" : "asc" },
+      { startsAt: "asc" },
+    ];
+  }
+
   const rows = await prisma.event.findMany({
     where,
-    orderBy: { startsAt: filters.sort === "date_desc" ? "desc" : "asc" },
+    orderBy: orderBy as never,
   });
   return rows.map(mapToListEvent);
 }
@@ -191,9 +252,47 @@ export async function getEventBySlug(slug: string): Promise<FullEvent | null> {
 
   const row = await prisma.event.findFirst({
     where: { slug, status: "approved" },
+    include: {
+      submitter: {
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          organizationType: true,
+          bio: true,
+          location: true,
+          website: true,
+          profileImageUrl: true,
+          causeFocus: true,
+          profileCompleted: true,
+          createdAt: true,
+        },
+      },
+    },
   });
   if (!row) return null;
-  return mapToFullEvent(row);
+
+  let organizerProfile = null;
+  if (row.submitter && row.submitter.profileCompleted) {
+    const totalEvents = await prisma.event.count({
+      where: { submittedById: row.submitter.id, status: "approved" },
+    });
+    organizerProfile = {
+      id: row.submitter.id,
+      displayName: row.submitter.displayName ?? row.hostName,
+      organizationType: row.submitter.organizationType,
+      bio: row.submitter.bio,
+      location: row.submitter.location,
+      website: row.submitter.website,
+      email: row.submitter.email,
+      profileImageUrl: row.submitter.profileImageUrl,
+      causeFocus: row.submitter.causeFocus,
+      memberSince: format(row.submitter.createdAt, "MMMM yyyy"),
+      totalEvents,
+    };
+  }
+
+  return { ...mapToFullEvent(row), organizerProfile };
 }
 
 const ACCENT_BY_INDEX = ["primary", "secondary", "tertiary"];
@@ -270,11 +369,48 @@ export async function getPendingEvents(): Promise<DbEvent[]> {
   return rows.map(toDbEvent);
 }
 
-export async function getAllEventsForAdmin(): Promise<DbEvent[]> {
+export async function getAllEventsForAdmin(): Promise<AdminEvent[]> {
   const rows = await prisma.event.findMany({
     orderBy: { createdAt: "desc" },
+    include: {
+      submitter: {
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          organizationType: true,
+          bio: true,
+          location: true,
+          website: true,
+          profileImageUrl: true,
+          causeFocus: true,
+          profileCompleted: true,
+          createdAt: true,
+        },
+      },
+      flags: {
+        orderBy: { createdAt: "desc" },
+      },
+    },
   });
-  return rows.map(toDbEvent);
+  return rows.map((row) => {
+    const submitter: AdminEventSubmitter | null = row.submitter
+      ? {
+          ...row.submitter,
+          createdAt: row.submitter.createdAt.toISOString(),
+        }
+      : null;
+    const flags = row.flags.map((f) => ({
+      id: f.id,
+      reason: f.reason as "outdated" | "inappropriate" | "spam" | "inaccurate" | "other",
+      message: f.message,
+      reporterEmail: f.reporterEmail,
+      resolvedAt: f.resolvedAt?.toISOString() ?? null,
+      createdAt: f.createdAt.toISOString(),
+    }));
+    const openFlagCount = flags.filter((f) => !f.resolvedAt).length;
+    return { ...toDbEvent(row), submitter, flags, openFlagCount };
+  });
 }
 
 export async function getAdminStats(): Promise<{

@@ -6,7 +6,10 @@ import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { setSessionCookie, clearSessionCookie } from "@/lib/auth/session";
 import { generateRawToken, hashToken } from "@/lib/auth/tokens";
-import { sendVerificationEmail } from "@/lib/auth/email";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "@/lib/auth/email";
 
 const signupSchema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -160,4 +163,117 @@ export async function loginAction(
 export async function logoutAction(): Promise<void> {
   await clearSessionCookie();
   redirect("/");
+}
+
+// ───────── Password reset ─────────
+
+const requestResetSchema = z.object({
+  email: z.string().email("Enter a valid email address."),
+});
+
+export async function requestPasswordResetAction(
+  _prev: AuthState,
+  formData: FormData
+): Promise<AuthState> {
+  const parsed = requestResetSchema.safeParse({
+    email: formData.get("email"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid email." };
+  }
+
+  const email = parsed.data.email.toLowerCase().trim();
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  // Send the email only if the user actually exists, but always return the
+  // same success state so we don't leak which emails are registered.
+  if (user) {
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+
+    const rawToken = generateRawToken();
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash, expiresAt },
+    });
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const link = `${baseUrl}/reset-password?token=${rawToken}`;
+
+    try {
+      await sendPasswordResetEmail(email, link);
+    } catch (err) {
+      console.error("Failed to send password reset email:", err);
+      // Still return success to avoid leaking — user can retry from the form
+    }
+  }
+
+  return { success: "ok", email };
+}
+
+const resetPasswordSchema = z
+  .object({
+    token: z.string().min(10, "Missing reset token."),
+    password: z.string().min(8, "Password must be at least 8 characters."),
+    confirm: z.string(),
+  })
+  .refine((data) => data.password === data.confirm, {
+    message: "Passwords do not match.",
+    path: ["confirm"],
+  });
+
+export type ResetPasswordState = {
+  error?: string;
+  success?: boolean;
+};
+
+export async function resetPasswordAction(
+  _prev: ResetPasswordState,
+  formData: FormData
+): Promise<ResetPasswordState> {
+  const parsed = resetPasswordSchema.safeParse({
+    token: formData.get("token"),
+    password: formData.get("password"),
+    confirm: formData.get("confirm"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  const { token, password } = parsed.data;
+  const tokenHash = hashToken(token);
+
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+  });
+
+  if (!record) {
+    return { error: "This reset link is invalid. Request a new one." };
+  }
+  if (record.usedAt) {
+    return { error: "This reset link has already been used. Request a new one." };
+  }
+  if (record.expiresAt < new Date()) {
+    return { error: "This reset link has expired. Request a new one." };
+  }
+
+  const passwordHash = await hashPassword(password);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { passwordHash },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    }),
+    // Invalidate all other reset tokens for this user
+    prisma.passwordResetToken.deleteMany({
+      where: { userId: record.userId, id: { not: record.id } },
+    }),
+  ]);
+
+  return { success: true };
 }

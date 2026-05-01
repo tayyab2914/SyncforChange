@@ -13,7 +13,12 @@ import {
   buildCalendarCells,
   buildCalendarMeta,
 } from "@/lib/utils/calendar";
-import type { EventFilters, CauseArea, EventType } from "@/types";
+import type {
+  EventFilters,
+  CauseArea,
+  EventType,
+  DateRangeFilter,
+} from "@/types";
 
 type RawParams = {
   cause?: string;
@@ -23,6 +28,8 @@ type RawParams = {
   view?: string;
   sort?: string;
   location?: string;
+  q?: string;
+  date?: string;
 };
 
 interface PageProps {
@@ -66,7 +73,14 @@ async function CalendarContent({
     month,
     year,
     location: params.location,
-    sort: params.sort as "date_asc" | "date_desc" | undefined,
+    sort: params.sort as
+      | "date_asc"
+      | "date_desc"
+      | "type_asc"
+      | "type_desc"
+      | undefined,
+    q: params.q,
+    date: params.date as DateRangeFilter | undefined,
   };
 
   const [events, eventDays, eventCount] = await Promise.all([
@@ -87,7 +101,13 @@ async function CalendarContent({
         currentMonth={month}
         currentYear={year}
         currentView={(params.view as "calendar" | "list") ?? "calendar"}
-        currentSort={(params.sort as "date_asc" | "date_desc") ?? "date_asc"}
+        currentSort={
+          (params.sort as
+            | "date_asc"
+            | "date_desc"
+            | "type_asc"
+            | "type_desc") ?? "date_asc"
+        }
       />
       <UpcomingEvents events={events} />
     </>

@@ -50,6 +50,37 @@ export default function ProfileSetupForm({ initialValues, isFirstTime }: Props) 
   const [profileImageUrl, setProfileImageUrl] = useState(
     initialValues?.profileImageUrl ?? ""
   );
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadError("");
+    setUploading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload/profile", {
+        method: "POST",
+        body: fd,
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setUploadError(data.error ?? "Upload failed");
+      } else {
+        setProfileImageUrl(data.url);
+      }
+    } catch {
+      setUploadError("Upload failed. Try again.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   useEffect(() => {
     if (state.success) {
@@ -177,40 +208,82 @@ export default function ProfileSetupForm({ initialValues, isFirstTime }: Props) 
         )}
 
         {/* Profile image */}
-        <div className="flex items-center gap-5">
-          <div className="w-24 h-24 rounded-3xl overflow-hidden bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center shrink-0">
+        <div className="flex items-start gap-5">
+          <div className="relative w-24 h-24 rounded-3xl overflow-hidden bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center shrink-0">
             {profileImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={profileImageUrl}
-                alt=""
+                alt="Profile preview"
                 className="w-full h-full object-cover"
-                onError={(e) => (e.currentTarget.style.display = "none")}
               />
             ) : (
               <span className="material-symbols-outlined text-primary text-4xl">
                 account_circle
               </span>
             )}
+            {uploading && (
+              <div className="absolute inset-0 bg-on-surface/40 flex items-center justify-center">
+                <span className="material-symbols-outlined text-white animate-spin">
+                  progress_activity
+                </span>
+              </div>
+            )}
           </div>
-          <div className="flex-1">
+
+          <div className="flex-1 pt-1">
             <label className="block text-xs font-bold uppercase tracking-widest text-stone-500 mb-2">
-              Profile Image URL{" "}
+              Profile Image{" "}
               <span className="text-stone-300 normal-case font-normal tracking-normal">
                 optional
               </span>
             </label>
+
+            <input type="hidden" name="profileImageUrl" value={profileImageUrl} />
             <input
-              name="profileImageUrl"
-              type="url"
-              className={errClass("profileImageUrl")}
-              placeholder="https://example.com/your-logo.png"
-              value={profileImageUrl}
-              onChange={(e) => setProfileImageUrl(e.target.value)}
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleFileChange}
+              className="hidden"
             />
-            <p className="text-[11px] text-stone-400 mt-1.5">
-              Square images work best. Paste a direct URL to your logo or photo.
-            </p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs px-4 py-2 rounded-full transition-colors disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-base">
+                  {profileImageUrl ? "edit" : "upload"}
+                </span>
+                {uploading
+                  ? "Uploading…"
+                  : profileImageUrl
+                  ? "Replace image"
+                  : "Upload image"}
+              </button>
+
+              {profileImageUrl && !uploading && (
+                <button
+                  type="button"
+                  onClick={() => setProfileImageUrl("")}
+                  className="inline-flex items-center gap-1 text-stone-500 hover:text-error font-bold text-xs px-3 py-2 rounded-full transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">delete</span>
+                  Remove
+                </button>
+              )}
+            </div>
+
+            {uploadError ? (
+              <p className="text-[11px] text-error font-medium mt-2">{uploadError}</p>
+            ) : (
+              <p className="text-[11px] text-stone-400 mt-2">
+                Square images work best. JPG, PNG, WebP, or GIF up to 5MB.
+              </p>
+            )}
           </div>
         </div>
 

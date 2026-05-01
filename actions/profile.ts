@@ -32,7 +32,15 @@ const profileSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v === "" ? undefined : v))
-    .pipe(z.string().url("Enter a valid image URL").optional()),
+    .pipe(
+      z
+        .string()
+        .refine(
+          (v) => v.startsWith("/uploads/") || /^https?:\/\//.test(v),
+          "Enter a valid image URL or upload a file"
+        )
+        .optional()
+    ),
   causeFocus: z
     .array(z.enum(CAUSE_FOCUS_OPTIONS))
     .min(1, "Select at least one cause area")

@@ -9,6 +9,7 @@ import EventAbout from "@/components/event/EventAbout";
 import EventOrganizer from "@/components/event/EventOrganizer";
 import EventCoHosts from "@/components/event/EventCoHosts";
 import EventCtaSidebar from "@/components/event/EventCtaSidebar";
+import ReportEventButton from "@/components/event/ReportEventButton";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -62,18 +63,33 @@ async function EventDetailContent({ params }: PageProps) {
             address={event.address}
           />
           <EventAbout description={event.description} />
-          <EventOrganizer organizer={event.organizer} submitterId={event.submitterId} />
+          <EventOrganizer
+            organizer={event.organizer}
+            submitterId={event.submitterId}
+            profile={event.organizerProfile}
+          />
           <EventCoHosts coHosts={event.coHosts} />
+
+          <div className="mt-10 pt-6 border-t border-stone-100 flex justify-end">
+            <ReportEventButton eventSlug={event.id} />
+          </div>
         </div>
 
         <div className="lg:col-span-4">
           <EventCtaSidebar
-            spotsLeft={event.spotsLeft}
             totalSpots={event.totalSpots}
             openToCollaboration={event.openToCollaboration}
             rsvpLink={event.rsvpLink}
             volunteerLink={event.volunteerLink}
             contactLink={event.contactLink}
+            eventTitle={event.title}
+            eventSlug={event.id}
+            eventDescription={event.description}
+            startsAtIso={event.startsAtIso}
+            endsAtIso={event.endsAtIso}
+            locationName={event.location}
+            address={event.address}
+            hostEmail={event.submitterEmail}
           />
         </div>
       </div>
